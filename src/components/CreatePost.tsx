@@ -3,26 +3,118 @@ import { ArrowLeft, Image, Send, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CreatePostProps {
-  universityName: string;
+  universityName?: string;
+  universityId?: string;
   onBack: () => void;
   onSubmit: (text: string, image?: File) => void;
 }
 
-const CreatePost = ({ universityName, onBack, onSubmit }: CreatePostProps) => {
+const CreatePost = ({ universityName, universityId, onBack, onSubmit }: CreatePostProps) => {
   const [text, setText] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
     
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    onSubmit(text, image || undefined);
-    setIsSubmitting(false);
+    
+    try {
+      // First, moderate the content with OpenAI
+      const { data: moderationResult, error: moderationError } = await supabase.functions.invoke('moderate-content', {
+        body: { content: text, type: 'post' }
+      });
+
+      if (moderationError) {
+        console.error('Moderation error:', moderationError);
+        toast({
+          title: "Error",
+          description: "Unable to verify content. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!moderationResult.approved) {
+        toast({
+          title: "Content not allowed",
+          description: moderationResult.message || "Your post violates community guidelines.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Upload image if present
+      let imageUrl = null;
+      if (image) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('post-images')
+          .upload(fileName, image);
+
+        if (uploadError) {
+          console.error('Image upload error:', uploadError);
+          toast({
+            title: "Image upload failed",
+            description: "Your post will be created without the image.",
+            variant: "destructive",
+          });
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('post-images')
+            .getPublicUrl(uploadData.path);
+          imageUrl = publicUrl;
+        }
+      }
+
+      // Create the post
+      const colors = ['whispr-blue', 'whispr-teal', 'whispr-pink', 'whispr-green', 'whispr-yellow', 'whispr-orange', 'whispr-purple'];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+      const { data: postData, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          content: text,
+          image_url: imageUrl,
+          university_id: universityId,
+          color: randomColor
+        })
+        .select()
+        .single();
+
+      if (postError) {
+        console.error('Post creation error:', postError);
+        toast({
+          title: "Error",
+          description: "Failed to create post. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Post created!",
+        description: "Your anonymous post has been shared.",
+      });
+
+      onSubmit(text, image || undefined);
+    } catch (error) {
+      console.error('Error creating post:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

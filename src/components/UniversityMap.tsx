@@ -1,6 +1,8 @@
 import { MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface University {
   id: string;
@@ -16,28 +18,46 @@ interface UniversityMapProps {
   onSelectUniversity: (university: University) => void;
 }
 
-const universities: University[] = [
-  { id: "karl-kumm", name: "Karl-Kumm University", shortName: "KKU", x: 45, y: 25, color: "whispr-purple", state: "Vom" },
-  { id: "anan", name: "ANAN University", shortName: "ANAN", x: 60, y: 30, color: "whispr-teal", state: "Kwall" },
-  { id: "plateau-poly", name: "Plateau State Polytechnic", shortName: "PLAPOLY", x: 55, y: 35, color: "whispr-pink", state: "Bukuru" },
-  { id: "fed-poly-nyak", name: "Federal Polytechnic", shortName: "FEDPOLY", x: 50, y: 40, color: "whispr-blue", state: "Nyak Shendam" },
-  { id: "animal-health", name: "Federal College of Animal Health", shortName: "FCAH", x: 40, y: 28, color: "whispr-green", state: "Vom" },
-  { id: "forestry-jos", name: "Federal College of Forestry", shortName: "FCF", x: 52, y: 32, color: "whispr-yellow", state: "Jos" },
-  { id: "land-resources", name: "Federal College of Land Resources Tech", shortName: "FCLRT", x: 58, y: 38, color: "whispr-orange", state: "Kuru" },
-  { id: "agric-garkawa", name: "Plateau State College of Agriculture", shortName: "PSCA", x: 65, y: 45, color: "whispr-purple", state: "Garkawa" },
-  { id: "oswald-shendam", name: "Oswald College of Education", shortName: "OCE", x: 48, y: 42, color: "whispr-teal", state: "Shendam" },
-  { id: "uniabuja", name: "University of Abuja", shortName: "UniAbuja", x: 35, y: 50, color: "whispr-blue", state: "Abuja" },
-  { id: "unn", name: "University of Nigeria", shortName: "UNN", x: 70, y: 60, color: "whispr-pink", state: "Nsukka" },
-  { id: "unilag", name: "University of Lagos", shortName: "UNILAG", x: 25, y: 70, color: "whispr-green", state: "Lagos" },
-  { id: "uniport", name: "University of Port Harcourt", shortName: "UNIPORT", x: 45, y: 80, color: "whispr-yellow", state: "Port Harcourt" },
-  { id: "abu", name: "Ahmadu Bello University", shortName: "ABU", x: 30, y: 20, color: "whispr-orange", state: "Zaria" },
-  { id: "atbu", name: "Abubakar Tafawa Balewa University", shortName: "ATBU", x: 55, y: 15, color: "whispr-purple", state: "Bauchi" },
-  { id: "ui", name: "University of Ibadan", shortName: "UI", x: 20, y: 65, color: "whispr-teal", state: "Ibadan" },
-  { id: "delsu", name: "Delta State University", shortName: "DELSU", x: 40, y: 75, color: "whispr-pink", state: "Abraka" },
-  { id: "absu", name: "Abia State University", shortName: "ABSU", x: 60, y: 70, color: "whispr-blue", state: "Uturu" },
-];
-
 const UniversityMap = ({ onSelectUniversity }: UniversityMapProps) => {
+  const [universities, setUniversities] = useState<University[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('universities')
+          .select('*')
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching universities:', error);
+          return;
+        }
+
+        const formattedData = data?.map(uni => ({
+          ...uni,
+          shortName: uni.short_name
+        })) || [];
+        setUniversities(formattedData);
+      } catch (error) {
+        console.error('Error fetching universities:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUniversities();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-map p-4 flex items-center justify-center">
+        <div className="text-xl text-foreground">Loading campus map...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-map p-4">
       {/* Header */}
@@ -71,6 +91,26 @@ const UniversityMap = ({ onSelectUniversity }: UniversityMapProps) => {
             strokeWidth="0.5" 
             fill="hsl(var(--whispr-teal) / 0.1)"
           />
+          
+          {/* Dotted connection lines between universities */}
+          {universities.map((uni, index) => {
+            const nextUni = universities[index + 1];
+            if (!nextUni) return null;
+            
+            return (
+              <line
+                key={`line-${uni.id}-${nextUni.id}`}
+                x1={uni.x}
+                y1={uni.y}
+                x2={nextUni.x}
+                y2={nextUni.y}
+                stroke="hsl(var(--whispr-teal))"
+                strokeWidth="0.3"
+                strokeDasharray="1,1"
+                opacity="0.4"
+              />
+            );
+          })}
         </svg>
 
         {/* Universities */}
@@ -96,8 +136,8 @@ const UniversityMap = ({ onSelectUniversity }: UniversityMapProps) => {
               </div>
 
               {/* University Name Tooltip */}
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm">
-                {uni.shortName}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm max-w-[200px] text-center">
+                {uni.name}
               </div>
 
               {/* Connection Line (simplified) */}
