@@ -14,13 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          expires_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          color: string
+          comments_count: number
+          content: string
+          created_at: string
+          expires_at: string
+          id: string
+          image_url: string | null
+          likes_count: number
+          university_id: string
+          video_url: string | null
+          views_count: number
+        }
+        Insert: {
+          color?: string
+          comments_count?: number
+          content: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          image_url?: string | null
+          likes_count?: number
+          university_id: string
+          video_url?: string | null
+          views_count?: number
+        }
+        Update: {
+          color?: string
+          comments_count?: number
+          content?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          image_url?: string | null
+          likes_count?: number
+          university_id?: string
+          video_url?: string | null
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reactions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          post_id: string
+          reaction_type: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          post_id: string
+          reaction_type?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          post_id?: string
+          reaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universities: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          short_name: string
+          state: string
+          x: number
+          y: number
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          name: string
+          short_name: string
+          state: string
+          x: number
+          y: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          short_name?: string
+          state?: string
+          x?: number
+          y?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_expired_posts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
